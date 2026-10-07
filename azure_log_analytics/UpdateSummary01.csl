@@ -1,0 +1,47 @@
+UpdateSummary
+| where CriticalUpdatesMissing > 0 or SecurityUpdatesMissing > 0
+| summarize by Computer, CriticalUpdatesMissing, SecurityUpdatesMissing
+
+UpdateSummary
+| where CriticalUpdatesMissing > 0 or SecurityUpdatesMissing > 0
+| where TimeGenerated > ago(30d)
+| distinct  Computer, CriticalUpdatesMissing, SecurityUpdatesMissing
+
+// Defining business day display names and business hours lookup table
+let businessInterval = datatable (
+dayOfWeekTimespan: int,
+dayOfWeekDayDisplayName: string,
+firstH: int,
+lastH: int
+) [
+0, "Monday", 7, 18,
+1, "Tuesday", 7, 18,
+2, "Wednesday", 7, 18,
+3, "Thursday", 7, 18,
+4, "Friday", 7, 18,
+5, "Saturday", 7, 18,
+6, "Sunday", 7, 18
+];
+// Defining timerange interval
+//let startDate = ago(1d);
+//let endDate = now();
+UpdateSummary
+//| where TimeGenerated between (startDate .. endDate)
+| extend dayOfWeekTimespan = toint(substring(tostring(dayofweek(TimeGenerated)), 0, 1))
+| where dayOfWeekTimespan in (4)
+| lookup kind=leftouter businessInterval on dayOfWeekTimespan
+| where datetime_part("Hour", TimeGenerated) between (firstH .. lastH)
+| where CriticalUpdatesMissing > 0 or SecurityUpdatesMissing > 0
+| summarize by Computer, CriticalUpdatesMissing, SecurityUpdatesMissing, TimeGenerated
+          
+Update
+| where Computer contains "vmwebprod03" or ResourceId contains "vmwebprod03"
+| where Classification =~ "Critical Updates" or Classification =~ "Security Updates"
+| summarize arg_max(TimeGenerated, *) by Title, Computer
+| where UpdateState =~ "Needed"
+| summarize count() by Title
+
+Update
+| where Classification =~ "Critical Updates" or Classification =~ "Security Updates"
+| where UpdateState =~ "Needed"
+| distinct Computer, Classification, ResourceId

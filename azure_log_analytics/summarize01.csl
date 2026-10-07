@@ -1,0 +1,12 @@
+githubtest_CL
+| partition by WorkflowName
+(
+top 1 by TimeGenerated
+)
+ 
+githubtest_CL
+| summarize arg_max(TimeGenerated, *) by WorkflowName
+ 
+githubtest_CL
+| summarize arg_max(TimeGenerated, *) by WorkflowName
+| where Status contains "failure"

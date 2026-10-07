@@ -1,0 +1,65 @@
+//https://azure.microsoft.com/en-us/blog/detect-malicious-activity-using-azure-security-center-and-azure-log-analytics/
+//http://contoso.se/blog/?cat=71
+//https://www.beyondtrust.com/blog/entry/windows-server-events-monitor
+//https://www.terminalworks.com/blog/post/2018/08/26/monitoring-active-directory-using-operational-management-suit-oms
+
+//decode a base64 encoded string in the command line data and look for common PowerShell methods that are used in attacks.
+//Version 1
+SecurityEvent
+| where TimeGenerated >= ago(30d)
+| where Process contains "powershell.exe" and CommandLine contains " -enc"
+|extend b64 = extract("[A-Za-z0-9|+|=|/]{30,}", 0,CommandLine)
+|extend utf8_decode=base64_decodestring(b64)
+|extend decode =  replace ("\x00","", utf8_decode)
+|where decode contains 'Gzip' or decode contains 'IEX' or decode contains 'Invoke' or decode contains '.MemoryStream'
+| summarize by Computer, Account, decode, CommandLine
+
+//Version 2
+SecurityEvent
+| where TimeGenerated >= ago(30d)
+| where Process contains "powershell.exe"  and CommandLine contains " -enc"
+| extend b64 = extract( "[A-Za-z0-9|+|=|/]{30,}", 0,CommandLine)
+| extend utf8_decode=base64_decodestring(b64)
+| extend decode =  replace ("\x00","", utf8_decode)
+| where decode contains 'Gzip' or decode contains'IEX' or decode contains 'Invoke' or decode contains '.MemoryStream'
+| summarize by TimeGenerated, Computer=toupper(Computer), Account, decode, CommandLine
+| join kind= inner (
+      SecurityAlert | where TimeGenerated >= ago(30d)
+      | extend ExtProps = parsejson(ExtendedProperties)
+      | extend Computer = toupper(tostring(ExtProps["Machine Name"]))
+      | project Computer, AlertName, Description
+) on Computer
+
+//CMSTP UAC Bypass via COM Object Access
+SecurityEvent 
+| where EventID == "1" and CommandLine endswith "\\DllHost.exe" 
+and CommandLine endswith "{3E5FC7F9-9A51-4367-9063-A120244FBEC7}" or CommandLine endswith "{3E000D72-A845-4CD9-BD83-80C07C3B881F}"
+
+//Interactive Logon to Server Systems
+SecurityEvent 
+| where TimeGenerated >= ago(1m)
+| where EventID == "528" or EventID == "529" or EventID == "4624" or EventID == "4625" 
+and LogonType == "2" and Computer == "%ServerSystems%" or Computer == "%DomainControllers%" and LogonProcessName == "Advapi" and Computer == "%Workstations%"
+
+//Time limited query
+let startDateOfAlert = startofday(now());
+let StartAlertTime = startDateOfAlert + 9hours;
+let StopAlertTime = startDateOfAlert + 18hours;
+SecurityEvent
+| extend localTimestamp = TimeGenerated + 2h
+| extend ByPassDays = dayofweek(localTimestamp)
+| where ByPassDays <> ‘6.00:00:00’
+| where ByPassDays <> ‘7.00:00:00’
+| where localTimestamp > StartAlertTime
+| where localTimestamp < StopAlertTime
+| order by localTimestamp asc 
+
+// Find reports of Windows accounts that failed to login. 
+SecurityEvent
+| where TimeGenerated > ago(1d)
+| where EventID == 4625
+| summarize count() by TargetAccount, Computer, _ResourceId
+| where Computer == "abcd113025.ad.abcd.se"
+| summarize AggregatedValue = sum(count_) by bin_at(datetime(2022-03-20 10:20:00.0), 60m, datetime(2022-03-21T13:04:23.0000000Z)), _ResourceId
+
+

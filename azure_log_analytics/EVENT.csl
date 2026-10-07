@@ -1,0 +1,90 @@
+//https://techcommunity.microsoft.com/t5/core-infrastructure-and-security/exploring-anomalies-with-log-analytics-using-kql/ba-p/2252477
+//http://2forward.be/kusto-query-language-examples/
+//https://docs.microsoft.com/en-us/azure/azure-monitor/logs/log-standard-columns
+
+//Counts the rows in the table
+Event
+| count 
+
+//Get data type
+Event
+| getschema 
+
+//Shows 1000 events
+Event
+| limit  1000
+//| take 1000 //"take" works as well
+
+//Search in event
+search in (Event) "Group" | take 100
+
+//Lists a specific event
+Event 
+| where EventID == 5016
+
+//Orders the results by the time generated
+Event
+| sort by TimeGenerated
+//| order by TimeGenerated //"order" works as well
+| limit 1000 
+
+//Get events generated 5 minuter ago
+Event
+| where TimeGenerated > ago(5m)
+
+//Show specific columns
+Event
+| limit 1000
+| project TimeGenerated, _ResourceId, Computer, EventLog
+
+//Make a List
+Event
+| where TimeGenerated >= ago(7d)
+| summarize EventCount=count() by Computer, bin(TimeGenerated,30m)
+| order by TimeGenerated
+| summarize EventCount=make_list(EventCount),TimeGenerated=make_list(TimeGenerated) by Computer
+
+//returns the number of error events created for each day in the previous week
+Event
+| where EventLevelName == "Error" 
+| where TimeGenerated between(startofweek(ago(7days))..endofweek(ago(7days))) 
+| summarize count() by bin(TimeGenerated, 1day) 
+| sort by TimeGenerated asc
+
+//Detect Anomalies
+Event
+| where TimeGenerated >= ago(7d)
+| summarize EventCount=count() by Computer, bin(TimeGenerated,30m)
+| order by TimeGenerated
+| summarize EventCount=make_list(EventCount),TimeGenerated=make_list(TimeGenerated) by Computer
+| extend outliers=series_decompose_anomalies(EventCount)
+
+//Get events during a specific date
+Event
+| where TimeGenerated between (datetime(2022-03-10) .. datetime(2022-03-11)) 
+| take 1000
+
+//Get events between specific hours
+Event
+| where TimeGenerated between (datetime(2022-03-10) .. datetime(2022-03-11)) 
+| where hourofday(TimeGenerated) >= 7
+| where hourofday(TimeGenerated) < 8
+//| where hourofday(TimeGenerated) between (7 .. 8) //This works as well
+| take 1000
+
+// Bypass UAC via Evenvwr.exe & fodhelper.exe
+let timeframe = 3d;
+Event
+| where TimeGenerated >= ago(timeframe)
+| where Source == "Microsoft-Windows-Sysmon"
+| where EventID == 1 and RenderedDescription has "OriginalFileName: reg.exe"
+and RenderedDescription has "add"
+and RenderedDescription has "SOFTWARE\\classes\\mscfile\\shell\\open\\command"
+ or RenderedDescription has "software\\classes\\ms-settings\\shell\\open\\command"
+| parse EventData with * 'UtcTime">' UtcTime '</Data>' * 
+| parse EventData with * 'User">' User '</Data>' *
+| parse EventData with * 'OriginalFileName">' OriginalFileName '</Data>' *
+| parse EventData with * 'CommandLine">' CommandLine '</Data>' *
+| parse EventData with * 'ParentCommandLine">' ParentCommandLine '</Data>' *
+| project UtcTime, User, OriginalFileName, CommandLine, ParentCommandLine
+| sort by UtcTime desc

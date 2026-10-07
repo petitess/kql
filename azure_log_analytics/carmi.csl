@@ -1,0 +1,83 @@
+// Devices which terminated Microsoft Antimalware. 
+SecurityEvent
+| where EventID == 4689 
+| where Process has "MsMpEng.exe" or ParentProcessName has "MsMpEng.exe"
+| summarize TerminationCount = count() by Computer
+
+// Find reports of Windows accounts that failed to login. 
+SecurityEvent
+| where EventID == 4625
+| summarize count() by TargetAccount, Computer, _ResourceId
+| where  Computer == "abcd113025.ad.xxxx.se"
+
+//Check if event loggging is disable
+SecurityEvent 
+| where (EventID == "4719" and AuditPolicyChanges == "removed")
+
+//Checks if RDP was added to windows firewall
+ SecurityEvent 
+ | where EventID == "4688" 
+ | where CommandLine matches regex "netsh i.* p.*=3389 c.*"
+
+ //Checks if a rule was added to windows firewall
+ SecurityEvent 
+ | where EventID == "4688" 
+ | where CommandLine contains "netsh firewall add"
+
+ ////Checks if a rule was added to windows firewall - manually
+SecurityEvent 
+| where TimeGenerated >= ago(1d)
+| where EventID == "4946"
+| where Computer != "Az-abc-79.ad.xxx.se" 
+    and Computer != "Az-abc-78.ad.xxx.se" 
+    and Computer != "Az-abc-77.ad.xxx.se"
+    and Computer != "Az-abc-76.ad.xxx.se" 
+    and Computer != "Az-abc-75.ad.xxx.se"
+    and Computer != "Az-RPA04.ad.xxx.se" 
+    and Computer != "Az-RPA03.ad.xxx.se"
+| where EventData !has "Usermode" 
+    and EventData !has "PinningConfirmationDialog"
+    and EventData !has "NetworkWatcher" 
+    and EventData !has "WinDefend"
+    and EventData !has "Google" 
+    and EventData !has "@" 
+    and EventData !has "Shell" 
+    and EventData !has "CapturePicker"
+    and EventData !has "Edge" 
+    and EventData !has "Protection"
+    and EventData !has "LpacSenseNdr"
+    and EventData !has "Adobe"
+    and EventData !contains "Win32" 
+    and EventData !contains "Narrator"
+| sort by TimeGenerated
+
+//Checks if a rule was added to Azure NSG
+//Run this in resource group
+AzureActivity
+| where TimeGenerated >= ago(1d)
+| where OperationNameValue contains "networkSecurityGroups/securityRules/write"
+| where ActivityStatus has "Succeeded"
+
+//Find which users clicked on a phishing link after it was detected by Defender for Office 365
+SecurityAlert
+| where ProviderName == "OATP"
+| where AlertName in ("Email messages containing malicious URL removed after delivery​","Email messages containing phish URLs removed after delivery")
+| extend x = todynamic(Entities)
+| mv-expand x
+| parse-where x with * '"Url":"' MaliciousURL '"' *
+| project PhishTime=TimeGenerated, MaliciousURL
+| join kind=inner (
+    DeviceEvents
+    | project TimeGenerated, ActionType, DeviceName, InitiatingProcessAccountName, RemoteUrl
+    | where ActionType == "BrowserLaunchedToOpenUrl"
+    | where RemoteUrl startswith "http")
+    on $left.MaliciousURL == $right.RemoteUrl
+| project-rename URLOpenTime=TimeGenerated
+| extend TimeDelta = abs(URLOpenTime - PhishTime)
+| project PhishTime, URLOpenTime, TimeDelta, ActionType, RemoteUrl, DeviceName, InitiatingProcessAccountName
+
+//Check if LSASS process was dumped either using Procdump or comsvcs.dll
+SecurityEvent 
+  | where EventID == 4688
+  | where CommandLine has_all ("procdump", "lsass") or CommandLine has_all ("rundll32", "comsvcs", "MiniDump")
+  | extend timestamp = TimeGenerated, AccountCustomEntity = Account, HostCustomEntity = Computer

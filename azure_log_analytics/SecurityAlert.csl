@@ -1,0 +1,180 @@
+//https://azsec.azurewebsites.net/2019/11/29/work-with-azure-security-center-alert-in-log-analytics/
+
+//list all alerts for the last 24 hours
+SecurityAlert
+| where TimeGenerated >=ago(24h)
+
+//count total number of alerts for the last 24 hours
+SecurityAlert
+| where TimeGenerated >=ago(24h)
+| count
+
+//list specific alert type
+SecurityAlert
+| where TimeGenerated >=ago(24h)
+| where AlertName == "Traffic from unrecommended IP addresses was detected"
+
+//show only column you expect to see for example TimeGenerated, StartTime, EndTime and ResourceId
+SecurityAlert 
+| where TimeGenerated >=ago(24h) 
+| where AlertName == "Traffic from unrecommended IP addresses was detected"
+| project TimeGenerated, StartTime, EndTime, ResourceId
+
+//count number of alerts for each of point of time and sort descending by number
+SecurityAlert
+| where TimeGenerated >=ago(24h)
+| summarize count() by TimeGenerated
+| sort by count_
+
+//count number of alerts that occurs every 1 hour during the last 24 hours
+SecurityAlert
+| where TimeGenerated >=ago(24h)
+| summarize count() by bin(TimeGenerated, 1h)
+
+//list distinct alert for the last 24 hours
+SecurityAlert
+| where TimeGenerated >=ago(24h)
+| distinct AlertName
+
+//visualize alert type with piechart
+SecurityAlert
+| where TimeGenerated >=ago(24h)
+| summarize count() by AlertName
+| render piechart
+
+//list all alerts between a time range
+let startTime = datetime(2019-09-10);
+let endTime = datetime(2019-09-12);
+SecurityAlert
+| where TimeGenerated between (startTime .. endTime)
+
+//parse alert body from JSON to friendly-string format
+SecurityAlert
+| where TimeGenerated >=ago(24h)
+| where AlertName == "Traffic from unrecommended IP addresses was detected"
+| extend destPort = parse_json(ExtendedProperties)['Destination Port']
+| extend protocol = parse_json(ExtendedProperties)['Protocol']
+
+//what process on which machine that causes crash dump
+let processName = SecurityAlert 
+| where DisplayName == "Modified system binary discovered" 
+| where TimeGenerated>=ago(30d) 
+| extend properties = parse_json(ExtendedProperties) 
+| extend process_name = tostring(properties['ProcessName'])
+| extend process_version = tostring(properties['ProcessVersion'])
+| distinct process_name; 
+SecurityEvent 
+| where Process in (processName) 
+| where TimeGenerated>=ago(30d) 
+| project TimeGenerated, Computer, CommandLine, NewProcessName, ParentProcessName, SubjectAccount
+
+//Convert json to a variable using todynamic, then step into the json array and project the values
+SecurityAlert
+| where TimeGenerated > ago(365d)
+| extend Extprops=todynamic(ExtendedProperties) 
+| project AlertName 
+        , TimeGenerated 
+        , Extprops["Alert Start Time (UTC)"]
+        , Extprops["Source"]
+        , Extprops["Non-Existent Users"]
+        , Extprops["Existing Users"]
+        , Extprops["Failed Attempts"]
+        , Extprops["Successful Logins"]
+        , Extprops["Successful User Logons"]
+        , Extprops["Account Logon Ids"]
+        , Extprops["Failed User Logons"]
+        , Extprops["End Time UTC"]
+        , Extprops["ActionTaken"]
+        , Extprops["resourceType"]
+        , Extprops["ServiceId"]
+        , Extprops["ReportingSystem"]
+        , Extprops["OccuringDatacenter"]
+
+//You can use column-renaming to structure the output better
+SecurityAlert
+| where TimeGenerated > ago(365d)
+| extend Extprops=todynamic(ExtendedProperties) 
+| project AlertName 
+        , TimeGenerated 
+        , AlertStartTime = Extprops["Alert Start Time (UTC)"]
+        , Source = Extprops["Source"]
+        , NonExistentUsers = Extprops["Non-Existent Users"]
+        , ExistingUsers = Extprops["Existing Users"]
+        , FailedAttempts = Extprops["Failed Attempts"]
+        , SuccessfulLogins = Extprops["Successful Logins"]
+        , SuccessfulUserLogons = Extprops["Successful User Logons"]
+        , AccountLogonIds = Extprops["Account Logon Ids"]
+        , FailedUserLogons= Extprops["Failed User Logons"]
+        , EndTimeUtc = Extprops["End Time UTC"]
+        , ActionTaken = Extprops["ActionTaken"]
+        , ResourceType = Extprops["resourceType"]
+        , ServiceId = Extprops["ServiceId"]
+        , ReportingSystem = Extprops["ReportingSystem"]
+        , OccuringDataCenter = Extprops["OccuringDatacenter"]
+
+//If the JSON keys do not have spaces you can also use property notation
+SecurityAlert
+| where TimeGenerated > ago(365d)
+| extend Extprops=todynamic(ExtendedProperties) 
+| project AlertName 
+        , TimeGenerated 
+        , AlertStartTime = Extprops["Alert Start Time (UTC)"]
+        , Source = Extprops.Source
+        , NonExistentUsers = Extprops["Non-Existent Users"]
+        , ExistingUsers = Extprops["Existing Users"]
+        , FailedAttempts = Extprops["Failed Attempts"]
+        , SuccessfulLogins = Extprops["Successful Logins"]
+        , SuccessfulUserLogons = Extprops["Successful User Logons"]
+        , AccountLogonIds = Extprops["Account Logon Ids"]
+        , FailedUserLogons= Extprops["Failed User Logons"]
+        , EndTimeUtc = Extprops["End Time UTC"]
+        , ActionTaken = Extprops.ActionTaken
+        , ResourceType = Extprops.resourceType
+        , ServiceId = Extprops.ServiceId
+        , ReportingSystem = Extprops.ReportingSystem
+        , OccuringDataCenter = Extprops.OccuringDatacenter
+        
+//extract IP addresses from SecurityAlerts
+SecurityAlert 
+// First get lists of IP addresses from ExtendedProperties
+| extend properties = parse_json(ExtendedProperties)
+| extend IP_list = split(tostring(properties["IP Addresses"]), ",")
+| project IP_list
+| where isnotempty(IP_list) 
+| summarize make_set(IP_list)
+| mv-expand set_IP_list // get each IP on its own row
+| where isnotempty(set_IP_list)
+| project IP = tostring(set_IP_list)
+// Now get every IP address from Entities that are type "ip"
+| union (SecurityAlert 
+| extend Entities = parse_json(Entities)
+| project Entities
+| mv-expand Entities
+| extend EType = tostring(Entities.Type)
+| where EType == "ip"
+| extend IP = tostring(Entities.Address)
+| project IP)
+| order by IP
+
+//
+SecurityAlert
+// First get lists of unique IP addresses from the Extended Properties
+| project IPs = tostring(parse_json(ExtendedProperties)["IP Addresses"])
+| extend IPs = split(IPs,",") | mv-expand IPs
+| where isnotempty(IPs) | distinct tostring(IPs) // get only unique IPs
+| union (SecurityAlert // join to Entities IP pool
+| mv-expand parse_json(Entities)
+| project IPs = Entities["Address"]
+| where isnotempty(IPs) | distinct tostring(IPs)) // get only unique IPs
+| order by IPs
+| count
+
+//parsing Process entities with ProcessId and CommandLine details can look like below.
+SecurityAlert
+| extend EntitiesDynamicArray=parse_json(Entities) | mvexpand EntitiesDynamicArray 
+| extend Entitytype = tostring(parse_json(EntitiesDynamicArray).Type)
+| where Entitytype == "process"
+| extend ProcessId = tostring(parse_json(EntitiesDynamicArray).ProcessId), CommandLine = tostring(parse_json(EntitiesDynamicArray).CommandLine)
+
+
+

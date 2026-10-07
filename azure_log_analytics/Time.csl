@@ -1,0 +1,77 @@
+//https://techcommunity.microsoft.com/t5/microsoft-sentinel-blog/how-to-align-your-analytics-with-time-windows-in-azure-sentinel/ba-p/1667574
+
+//look back one day in time
+SecurityEvent
+| where TimeGenerated > ago(1d)
+
+//look between a range
+SecurityEvent
+| where TimeGenerated between (ago(7d) .. now() )
+| summarize min(TimeGenerated), max(TimeGenerated)
+
+SecurityEvent 
+| where TimeGenerated between (ago(7d) .. ago(5d) ) 
+| summarize min(TimeGenerated), max(TimeGenerated)
+
+SecurityEvent
+| where TimeGenerated between ( datetime(2021-07-01) .. datetime(2021-07-30, 09:00) )
+| summarize min(TimeGenerated), max(TimeGenerated)
+
+SecurityEvent
+| where TimeGenerated > startofday(ago(1d))
+| summarize min(TimeGenerated), max(TimeGenerated)
+
+SecurityEvent
+| where TimeGenerated between ( startofday(ago(48hrs)) .. endofday(ago(1d)) )
+| summarize min(TimeGenerated), max(TimeGenerated)
+
+SecurityEvent
+| where TimeGenerated > startofmonth(ago(0d))
+| summarize min(TimeGenerated), max(TimeGenerated)
+
+SecurityEvent
+| where TimeGenerated > startofday(ago(1d))
+| summarize arg_max(TimeGenerated, *)
+
+SecurityEvent
+| where TimeGenerated > startofday(ago(1d))
+| summarize  arg_max(TimeGenerated, Task, EventID)
+
+let searchTime = 1h;
+SecurityEvent
+| where TimeGenerated > ago(searchTime)
+| extend startOfHour = bin(TimeGenerated,1h)
+| where startOfHour > ago(searchTime)
+| summarize min(TimeGenerated), max(TimeGenerated)
+
+//exclude rows of data between 22pm and 6am (as we set 07 .. 22) as the allowed hours in the query
+Heartbeat
+| where TimeGenerated > ago(1d)
+| extend hour = datetime_part("hour", TimeGenerated)
+| where hour between (07 .. 22)
+| summarize LastCall = max(TimeGenerated) by Computer, ComputerEnvironment, hour
+| where LastCall < ago(10m)
+| order by hour asc
+                           
+//Now lets look at certain days of the week, in this case Monday (day 1) thru Friday (day 5)
+Heartbeat
+| where TimeGenerated > ago(30d)
+| where dayofweek(TimeGenerated) between (1d .. 5d)
+| summarize count(), make_set(dayofweek(TimeGenerated)) by Computer, bin(TimeGenerated, 1d)
+| order by TimeGenerated asc
+
+//we can also add a Column with the Name of the day, Monday, Tuesday etc… to make the report easier to read.
+Heartbeat
+| where TimeGenerated > ago(30d)
+| where dayofweek(TimeGenerated) between (1d .. 5d)
+| extend theDay = case(
+                        dayofweek(TimeGenerated) == '0.00:00:00', "Sunday",
+                        dayofweek(TimeGenerated) == '1.00:00:00', "Monday",
+                        dayofweek(TimeGenerated) == '2.00:00:00', "Tuesday",
+                        dayofweek(TimeGenerated) == '3.00:00:00', "Wednesday",
+                        dayofweek(TimeGenerated) == '4.00:00:00', "Thursday",
+                        dayofweek(TimeGenerated) == '5.00:00:00', "Friday",
+                        dayofweek(TimeGenerated) == '6.00:00:00', "Saturday",
+                        strcat("error: ", dayofweek(TimeGenerated))
+                       )
+| summarize by theDay

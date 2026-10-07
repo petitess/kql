@@ -1,0 +1,154 @@
+//http://2forward.be/kusto-query-language-examples/
+//Query Basics
+//Take
+Event | take 100
+search in (Event) "Group" | take 100
+//String
+Event | where EventID == 1058
+Event | where EventID != 1058
+Event | where Source has "Microsoft-Windows-GroupPolicy"
+Event | where Source !has "Microsoft-Windows-GroupPolicy"
+Event | where Source contains "Windows"
+Event | where Source !contains "Windows"
+Event | where Source !contains_cs "windows"
+Event | where Source contains_cs "windows"
+Event | where Source in ("Microsoft-Windows-GroupPolicy", "NETLOGON")
+Event | where Source !in ("Microsoft-Windows-GroupPolicy", "NETLOGON")
+//And/Or
+Event | where Source == "Microsoft-Windows-COMRuntime" and SourceSystem == "OpsManager"
+//Numerical
+Perf | where ObjectName == "LogicalDisk" and CounterName == "% Free Space" and InstanceName == "C:" | where CounterValue < 10
+Event | where TimeGenerated > ago(1d)
+Event | where TimeGenerated > now(-1d)
+Event | where TimeGenerated between(datetime("2020-06-29 00:00:00") .. datetime("2020-06-29 08:00:00"))
+//Project & Rename
+Event | where EventID == 1058 | project Computer, EventLog, Source, EventID, RenderedDescription
+Event | where EventID == 1058 | project TimeGenerated, Computer, EventLog, Source, EventID, RenderedDescription | extend LocalTime=TimeGenerated+2h
+//Time
+Event | where TimeGenerated > ago(1d) | summarize count()
+Event | where TimeGenerated > ago(1d) | summarize numberOfEvents=count()
+Event | where TimeGenerated > ago(1d) | summarize dcount(Computer)
+//Count
+Perf
+| where TimeGenerated > ago(1h)
+| summarize count() by ObjectName
+Perf
+| where TimeGenerated > ago(1h)
+| summarize avg(CounterValue) by Computer, CounterName
+Perf
+| where CounterName == "Available MBytes"
+| summarize count() by bin(TimeGenerated,30m), Computer
+//Time math calc
+Event | where EventID == 1058 | distinct Computer
+//Combine
+Event
+| where TimeGenerated > ago (1d)
+| where EventID == 1058
+| summarize count() by Computer
+| order by Computer asc
+| project Computer, NumberofEvent=count_
+//Advanced Queries
+//let
+let threshold=10;
+Perf
+| where TimeGenerated > ago(1d)
+| where ObjectName == "LogicalDisk" and CounterName == "% Free Space" and InstanceName == "C:"
+| summarize avgFreeSpace=avg(CounterValue) by Computer
+| where avgFreeSpace < threshold
+//join
+let threshold=10;
+Perf
+| where TimeGenerated > ago(1d)
+| where ObjectName == "LogicalDisk" and CounterName == "% Free Space" and InstanceName == "C:"
+| summarize avgFreeSpace=avg(CounterValue) by Computer
+| where avgFreeSpace < threshold
+| join kind = inner (Heartbeat | summarize arg_max(TimeGenerated, *) by Computer) on Computer
+| project ResourceId, Computer
+//Make_list
+Event | summarize make_list(EventID) by Computer
+//Make_set
+Event | summarize make_set(EventID) by Computer
+//Make-Series
+let interval = 1h;
+let stime = ago(7d);
+let etime = now();
+Event
+| make-series NumberEvents=count() default=0 on TimeGenerated in range(stime, etime, interval) by Computer
+| project TimeGenerated, Computer, NumberEvents
+//strcat
+let interval = 1h;
+let stime = ago(7d);
+let etime = now();
+Event
+| make-series NumberEvents=count() default=0 on TimeGenerated in range(stime, etime, interval) by Computer, EventLog
+| project TimeGenerated, strcat(Computer,"-",EventLog), NumberEvents
+//Split
+let startTime = ago(7d);
+let endTime = now();
+let _HeartBeat = (Heartbeat | where OSType == "Windows" | summarize max(TimeGenerated) by ResourceId,Computer);
+Perf
+| where ObjectName == "Memory" and CounterName == "Available MBytes"
+| summarize avg(CounterValue) by Computer
+| project Computer, memTrend=avg_CounterValue
+| join _HeartBeat on Computer
+| project Computer, memTrend, _resourceGroup = split(ResourceId,"/")[4], _subscription = split(ResourceId,"/")[2]
+//arg_max
+Heartbeat
+| summarize arg_max(TimeGenerated, *) by Computer
+//ComputerGroup
+Heartbeat | where Computer contains_cs "adc" | distinct Computer
+Perf | where Computer in (DC_ComputerGroup)
+//Function
+Update | where TimeGenerated > ago(1d) | where Classification == "Security Updates" | where UpdateState == "Needed"
+security_updates_last_day | where Title contains "KB4561608"
+//Charts
+//UI Chart
+//Set QRY Time to 7d
+
+Perf 
+| where ObjectName == "Memory" and CounterName == "Available MBytes"
+| summrize avg(CounterValue) by bin(TimeGenerated, 1d), Computer
+//In QRY Charts
+//Area
+Perf 
+| where ObjectName == "Memory" and CounterName == "Available MBytes"
+| summarize avg(CounterValue) by bin(TimeGenerated, 1h), Computer
+| render areachart kind=stacked
+//bar
+Perf 
+| where ObjectName == "Memory" and CounterName == "Available MBytes"
+| summarize avg(CounterValue) by bin(TimeGenerated, 1d), Computer
+| render barchart kind=unstacked
+//column
+Perf 
+| where ObjectName == "Memory" and CounterName == "Available MBytes"
+| summarize avg(CounterValue) by bin(TimeGenerated, 1d), Computer
+| render columnchart kind=unstacked
+//pie
+Perf 
+| where ObjectName == "Memory" and CounterName == "Available MBytes"
+| summarize avg(CounterValue) by bin(TimeGenerated, 1d), Computer
+| render piechart
+//Time
+Perf 
+| where ObjectName == "LogicalDisk" 
+| summarize avgCounbterValue=avg(CounterValue) by bin(TimeGenerated, 1h), Computer, InstanceName
+| render timechart
+//scatter
+Perf 
+| where ObjectName == "LogicalDisk" 
+| summarize avgCounbterValue=avg(CounterValue) by bin(TimeGenerated, 1h), Computer, InstanceName
+| render scatterchart
+//title
+Perf 
+| where ObjectName == "LogicalDisk" 
+| summarize avgCounbterValue=avg(CounterValue) by bin(TimeGenerated, 1h), Computer, InstanceName
+| render scatterchart with (title="Azure Monitor Charts Are Awesome")
+//Cross Workspace
+workspace(“workspace”).Event | count
+
+workspace(“AzureTest/rgazmon/logazmon001”).Event | count
+
+workspace(“xxxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxx”).Event | count
+
+workspace(“/subscriptions/xxxxxx-xxxxx-xxxxx-xxxxx-xxxxxxxxxxx/resourcegroups/rgazmon/providers/microsoft.operationalinsights/workspaces/logazmon001”).Event | count

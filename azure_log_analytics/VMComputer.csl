@@ -1,0 +1,21 @@
+//https://www.geeksforgeeks.org/microsoft-azure-kql-query-to-get-the-vm-computer-properties/
+
+//get the Azure VM Server Details 
+VMComputer
+| where TimeGenerated > ago(1h)
+
+//get the Azure VM Server properties of Operating System Details like OS Type, OS Full Name 
+VMComputer
+| where TimeGenerated > ago(1h)
+| summarize by Computer, OperatingSystemFamily, OperatingSystemFullName
+
+//get the Azure VM Server properties of Azure VM Size and the number of CPUs
+VMComputer
+| where TimeGenerated > ago(1h)
+| summarize by Computer, AzureSize, Cpus
+
+//get the Azure VM Server properties of IPv4 Address, IPv4 Default Gateway, and IPv4 Subnet Mask
+VMComputer
+| where TimeGenerated > ago(1h)
+| summarize by Computer, tostring(Ipv4Addresses), tostring(Ipv4DefaultGateways), tostring(Ipv4SubnetMasks)
+

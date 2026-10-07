@@ -1,0 +1,9 @@
+requests
+| where operation_Name == "trigger-http-b3studio-01"
+| where timestamp  between (todatetime('2026-03-01 12:00:38.709') .. todatetime('2026-03-01 15:00:38.709')) 
+
+traces
+| where operation_ParentId == "67a5c058582c1c41"
+
+traces
+| where message contains "IWB9JMKFN2TTZ"

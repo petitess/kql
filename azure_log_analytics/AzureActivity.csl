@@ -1,0 +1,43 @@
+//Show activities
+AzureActivity
+| limit 100 
+
+//count activities
+AzureActivity
+| count 
+
+//Get activity from a specific time
+AzureActivity
+| where  TimeGenerated < datetime(2/8/2022 00:00:00)
+| top 100 by TimeGenerated
+
+//Get activity from a hour ago
+AzureActivity
+| where  TimeGenerated < ago(1h)
+| top 100 by TimeGenerated
+
+//Search activity
+search in (AzureActivity) "Failure"
+
+//Search in a specific column ver.1
+AzureActivity
+| where  ActivityStatusValue has "Failure"
+| where TimeGenerated < ago(5h)
+
+//Search in a specific column ver.2
+AzureActivity
+| where  ActivityStatusValue has "Failure" and TimeGenerated < ago(5h)
+
+//Case sensitive search
+| where  ActivityStatusValue has_cs "Failure" and TimeGenerated < ago(5h)
+
+//Checks if Azure NSG was configured
+//Run this in resource group
+AzureActivity
+| where TimeGenerated >= (datetime(2022-03-21T13:48:26.0000000Z) - 1d)
+| where OperationNameValue contains "networkSecurityGroups/securityRules/write"
+| where ActivityStatus has "Succeeded"
+
+
+
+

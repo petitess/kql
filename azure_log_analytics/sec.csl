@@ -1,0 +1,156 @@
+SecurityDetection
+| where TimeGenerated >= ago(70d)
+
+#############
+
+SecurityEvent
+| where TimeGenerated  >= ago(10d)
+
+//
+search in (SecurityEvent) "ipconfig"
+| sort by TimeGenerated
+
+#############
+//What time it was 1 hour ago
+print(ago(1h))
+
+//Print the date
+print(datetime(2/8/2022 00:00:00))
+
+SecurityEvent
+| where TimeGenerated >= datetime(2020-04-16 19:10:00.000) and TimeGenerated <= datetime(2022-04-16 19:21:00.000)
+| where Computer contains "prod"
+| where Process contains "explorer.exe"
+
+//Interactive Logon to Server Systems
+SecurityEvent 
+| where ((EventID == "528" or EventID == "529" or EventID == "4624" or EventID == "4625" and LogonType == "2" and Computer == "%ServerSystems%" or Computer == "%DomainControllers%") and not (LogonProcessName == "Advapi" and Computer == "%Workstations%"))
+
+//Finds computers that were active in the last day but did not send heartbeats in the last hour.
+Heartbeat
+| where TimeGenerated > ago(1d)
+| summarize LastHeartbeat = max(TimeGenerated) by Computer
+| where isnotempty(Computer)
+| where LastHeartbeat < ago(1h)
+
+################
+
+// Malware detection 
+// Malware detected grouped by threat. 
+// To create an alert for this query, click '+ New alert rule'
+ProtectionStatus
+| where ThreatStatus != "No threats detected" 
+| where  TypeofProtection has "no anti-malware tool was detected"
+| where TimeGenerated >= ago(5h)
+
+###############
+// Remoted Logged Accounts on Devices 
+// Remoted logged accounts on a specific device. 
+SecurityEvent
+| where EventID == 4624 and (LogonTypeName == "3 - Network" or LogonTypeName == "10 - RemoteInteractive")
+| where Computer == "ser.xxx.se" // Replace with a specific computer name
+| summarize RemoteLogonCount = count() by Account
+#############
+SecurityEvent	
+| sort by TimeGenerated desc
+
+############
+StormEvents 
+| where StartTime between (datetime(2007-11-01) .. datetime(2007-12-01))
+| where State == "FLORIDA"  
+| count 
+
+//Checks if volume shadow copy service (VSS) is disabled
+Event
+| where EventID == "7040"
+| extend Logs=parse_xml(EventData)
+| extend ServiceName = tostring(parse_json(tostring(parse_json(tostring(parse_json(tostring(Logs.DataItem)).EventData)).Data))[0].["#text"])
+| extend ServiceStatus = tostring(parse_json(tostring(parse_json(tostring(parse_json(tostring(Logs.DataItem)).EventData)).Data))[2].["#text"])
+| where ServiceName == "Volume Shadow Copy" and ServiceStatus == "disabled"
+| project TimeGenerated, Computer, ServiceName, ServiceStatus, UserName, RenderedDescription
+
+################
+// Computer with missing updates 
+// All computers with missing updates. 
+// To create an alert for this query, click '+ New alert rule'
+Update
+|where OSType != "Linux" and UpdateState == "Needed" and Optional == "false" 
+| project TimeGenerated, Computer, Title, KBID, Classification, MSRCSeverity, PublishedDate, _ResourceId
+| sort by TimeGenerated desc
+###############
+// Missing security or critical updates 
+// Count how many security or other critical updates are missing. 
+// To create an alert for this query, click '+ New alert rule'
+Update
+| where Classification in ("Security Updates", "Critical Updates")
+| where UpdateState == 'Needed' and Optional == false and Approved == true
+| summarize count() by Classification, Computer, _ResourceId
+// This query requires the Security or Update solutions
+
+####################
+// Automatic update configuration. 
+// To create an alert for this query, click '+ New alert rule'
+UpdateSummary
+| summarize AggregatedValue = count() by WindowsUpdateSetting, Computer, _ResourceId
+###############
+// Logons With Clear Text Password 
+// Logons with clear text password by target account. 
+SecurityEvent
+| where EventID == 4624 and LogonType == 8
+| summarize count() by TargetAccount
+#############
+// Members Added to Security Enabled Groups 
+// Members added to the security enabled groups. 
+SecurityEvent
+| where EventID in (4728, 4732, 4756)
+| summarize count() by SubjectAccount
+#############
+// Protection Status updates 
+// Protection Status updates per day. 
+// To create an alert for this query, click '+ New alert rule'
+ProtectionStatus
+| summarize AggregatedValue = count(ScanDate) by bin(TimeGenerated, 1d), Computer, _ResourceId
+| sort by TimeGenerated desc
+################
+// Security Activities for Admin 
+// Security activities on a specific device for administrator sorted by time (newest first). 
+SecurityEvent 
+//| where Computer == "COMPUTER01.contoso.com"  // Replace with a specific computer name
+| where TargetUserName == "karol"
+| project TimeGenerated, Account, Activity, Computer
+| sort by TimeGenerated desc
+##############
+// Security Activities on the Device 
+// Security activities on a specific device sorted by time (newest first). 
+SecurityEvent 
+| where Computer == "ser.xxx.se" // Replace with a specific computer name
+| project TimeGenerated, Account, Activity, Computer
+| sort by TimeGenerated desc
+###############
+// Summary of updates available across machines 
+// Count of updates available under various categories for each machine. 
+// To create an alert for this query, click '+ New alert rule'
+UpdateSummary 
+| where TimeGenerated>ago(14h) 
+| summarize by Computer, CriticalUpdatesMissing, SecurityUpdatesMissing, OtherUpdatesMissing, TotalUpdatesMissing, ResourceId
+##################
+// User Accounts Changed 
+// Counts user account changes per target account. 
+SecurityEvent
+| where EventID in (4720, 4722)
+| summarize by TargetAccount
+####################
+//how many times users have attempted to log in, how many failed and how many succeeded.
+SecurityEvent
+| where EventID in (4625, 4624) and AccountType == 'User'
+| summarize Attempts = count(), Failed = countif(EventID == 4625), Succeeded = countif(EventID == 4654) by Account
+
+//top 10 suspicious failed logins, by IP Address. This one comes in handy if you have left RDP open to the world!
+SecurityEvent
+| where AccountType == 'User'
+| where EventID in (4624, 4625)
+| summarize Unique_Accounts = dcount(Account), Attempts = count(), Succeeded=countif(EventID == 4624), Failed=countif(EventID == 4625) by IpAddress
+| where Failed > 0
+| order by Succeeded>0, todouble(Succeeded)/Attempts asc, Attempts desc
+| project IP = IpAddress, Succeeded, Attempts, Unique_Accounts
+| take 10

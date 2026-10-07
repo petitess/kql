@@ -1,0 +1,8 @@
+AzureDiagnostics
+| where Category == "DDoSProtectionNotifications"
+
+AzureDiagnostics
+| where Category == "DDoSMitigationFlowLogs"
+
+AzureDiagnostics
+| where Category == "DDoSMitigationReports"

@@ -1,0 +1,38 @@
+// Last heartbeat of each computer. 
+Heartbeat
+| summarize arg_max(TimeGenerated, *) by Computer
+
+// Count computers heartbeats in the last hour. 
+Heartbeat
+| where TimeGenerated > ago(1h)
+| summarize count() by Computer
+
+// Recently stopped heartbeats - Heartbeat table. 
+Heartbeat
+| summarize LastReported=now()-max(TimeGenerated) by ResourceGroup, Resource, ResourceType 
+| where LastReported between(1m..15m)
+
+Heartbeat
+| summarize LastHeartbeat=max(TimeGenerated) by Computer
+| where TimeGenerated < ago(5m)
+
+Heartbeat
+| where TimeGenerated > now() - 1m
+| sort by TimeGenerated
+
+// Availability rate
+// Calculate the availability rate of each connected computer
+Heartbeat
+// bin_at is used to set the time grain to 1 hour, starting exactly 24 hours ago
+| summarize heartbeatPerHour = count() by bin_at(TimeGenerated, 1h, ago(24h)), Computer
+| extend availablePerHour = iff(heartbeatPerHour > 0, true, false)
+| summarize totalAvailableHours = countif(availablePerHour == true) by Computer 
+| extend availabilityRate = totalAvailableHours*100.0/24
+
+//Computers with monitor agent
+Heartbeat
+| where OSType == 'Windows'
+| where Category != 'Azure Monitor Agent'
+| summarize arg_max(TimeGenerated, *) by SourceComputerId
+| sort by Computer
+| render table

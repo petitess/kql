@@ -1,0 +1,43 @@
+ AzureDiagnostics
+ | where Category == "ApplicationGatewayFirewallLog" and requestUri_s == "/graphql" and  action_s == "Blocked"
+
+AzureDiagnostics
+ | where Category == "ApplicationGatewayFirewallLog" and action_s == "Matched"
+
+AzureDiagnostics | order by TimeGenerated 
+| where Category == 'ApplicationGatewayFirewallLog' and requestUri_s !in('/', '/internal-status-0123456789abcdef') and ruleId_s !in(920300, 920320) 
+| project TimeGenerated, ['Correlation ID'] = replace_string(transactionId_g, '-', ''), ['Request path'] = requestUri_s, Action = action_s, Message, Rule = ruleId_s, ['Rule type'] = ruleSetType_s, Scope = policyScopeName_s, ['Source IP'] = clientIp_s
+//First
+AzureDiagnostics
+ | where Category == "ApplicationGatewayFirewallLog" and action_s == "Blocked"
+//Second
+AzureDiagnostics
+ | where Category == "ApplicationGatewayFirewallLog" and action_s == "Matched" and transactionId_g == "646725c5-550c-487d-5436-b5daa416c95e" | distinct ruleId_s
+///////
+AGWFirewallLogs
+| where ClientIp startswith "<IP>"
+| where Action startswith "Blocked"
+//
+AGWFirewallLogs
+| where RuleId startswith "<rule-ID>"
+//
+AGWFirewallLogs
+| where RequestUri startswith "/images"
+//
+AzureDiagnostics
+| order by TimeGenerated
+| where host_name_s == "www.sol.com"
+    and action_s == "blocked" 
+    and clientIp_s == "1.2.3.4"
+    | summarize AggregatedValue = count() by requestUri_s, _ResourceId, Message, ruleId_s, ruleGroup_s, details_data_s
+//
+let AccessLog = view() {
+AzureDiagnostics
+| where Category == "ApplicationGatewayAccessLog" and originalHost_s == "www.abc.com"
+ };
+AzureDiagnostics
+| join kind=leftouter AccessLog on transactionId_g
+| where Category == "ApplicationGatewayFirewallLog"
+    and hostName_s == "www.abc.com"
+    and requestUri_s startswith "/"
+    and ruleId_s  == "300600"

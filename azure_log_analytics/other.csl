@@ -1,0 +1,199 @@
+// 10 latest Ingress logs 
+// Shows the most recent ten error logs in the Ingress category. This is helpful when getting familiar with the TSIIngress schema. 
+//Retrieves the most recent ten error logs in the Ingress category. This is helpful when getting familiar with the TSIIngress schema.
+TSIIngress
+| top 10 by TimeGenerated
+
+//Check failed logins
+SecurityEvent
+| where EventID == 4625 and Computer != "computer.domain.com" and Computer != "computer.domain.com"
+| summarize Failed = countif(EventID == 4625) by Account, Computer
+| where Failed > 10
+
+// Count datasets reads 
+// Count datasets reads grouped by users and datasets. 
+AmlDataSetEvent
+| where split(OperationName, "/")[-1]=="READ" and AmlDatasetId !=""
+| extend  Identity=(parse_json(Identity))
+| project AmlDatasetId, UserName=Identity.UserName
+| summarize  Count=count() by AmlDatasetId, UserName=tostring(UserName)
+
+// Count of denied access from IP Security Audit Logs by resource in selected time range 
+// Gets count for logs with denied access result from IP Security Audit Logs in selected time range by Resource, CsHost, CIp, and Details. 
+AppServiceIPSecAuditLogs
+| where Result == "Denied"
+| summarize count() by  _ResourceId, CsHost, CIp, Details
+
+// Count of failed workflow operations from Workflow Runtime 
+// Count of failed workflow operations from Workflow Runtime in selected time range for each workflow. 
+WorkflowRuntime
+| where Status == "Failed"
+| summarize count() by WorkflowName
+
+// Display Activity log Administrative events 
+// Displays Activity log for Administrative category. 
+AzureActivity 
+| where CategoryValue == "Administrative"
+| order by TimeGenerated desc
+
+// Display Activity log events generated from Policy 
+// Display top 100 records of all effect action operations performed by Azure Policy. 
+AzureActivity
+| project TimeGenerated, SubscriptionId, ResourceProviderValue, OperationNameValue, Caller, CategoryValue, CorrelationId, ActivityStatusValue, Properties_d
+| where OperationNameValue has "audit"
+| top 100 by TimeGenerated desc
+
+// Display top 5 longest job runs 
+// Display top 5 longest job runs. 
+AmlComputeJobEvent
+| where OperationName == "JobSubmitted"
+| join kind = inner (AmlComputeJobEvent
+        | where OperationName == "JobSucceeded"
+        | project StopTime=TimeGenerated, JobId)
+    on JobId 
+|project Duration=(StopTime-TimeGenerated), ExperimentName, WorkspaceName, ClusterName, JobName
+|top 5 by Duration desc nulls last
+
+// Display top 50 Activity log events 
+// Display top 50 Activity log events. 
+AzureActivity
+| project TimeGenerated, SubscriptionId, ResourceGroup,ResourceProviderValue,OperationNameValue,CategoryValue,CorrelationId,ActivityStatusValue, ActivitySubstatusValue, Properties_d, Caller
+| top 50 by TimeGenerated
+
+SecurityEvent
+| where EventID == 4625 and Computer != "computer.domain.com" and Computer != "computer.domain.com"
+
+//Failed logins
+SecurityEvent
+| where EventID == 4625 and Computer != "computer.domain.com"
+| summarize Failed = countif(EventID == 4625) by Account, Computer
+| where Failed > 10
+
+// Found users who accessed models 
+// Found top 100 users who accessed models. 
+AmlModelsEvent
+| where AmlModelName !=""
+| extend  Identity=(parse_json(Identity))
+| where Identity.UserName!=""
+| project AmlModelName, OperationName=split(OperationName, "/")[-1], UserName=Identity.UserName
+| limit 100
+
+// Get cluster events for clusters for specific VM size 
+// Get top 100 cluster events for clusters where the VM size is Standard_D1_V2. 
+AmlComputeClusterEvent
+| where VmSize == "STANDARD_D1_V2"
+| project  ClusterName, InitialNodeCount, MaximumNodeCount, QuotaAllocated, QuotaUtilized
+| limit 100
+
+// Get failed jobs 
+// Get top 100 failed jobs. 
+AmlComputeJobEvent
+| where EventType == "JobFailed"
+| project  TimeGenerated, ClusterId, EventType, ExecutionState, ToolType, JobErrorMessage, ErrorDetails
+| limit 100
+
+// Get number of running nodes 
+// Get number of running nodes across workspaces and clusters. 
+AmlComputeClusterEvent
+| summarize avgRunningNodes=avg(TargetNodeCount), maxRunningNodes=max(TargetNodeCount) by Workspace=tostring(split(_ResourceId, "/")[8]), ClusterName, ClusterType, VmSize, VmPriority
+| limit 100
+
+// Get records for a job 
+// Get top 100 records for a specific job name. 
+AmlComputeJobEvent
+| where JobName == "automl_a9940991-xxxx-4262-9763-2fd08b79d8fb_setup"
+| project  TimeGenerated, ClusterId, EventType, ExecutionState, ToolType
+| limit 100
+
+// Graph of Running and Idle Node instances 
+// Graph of Running and Idle Node instances. 
+AmlComputeClusterEvent
+| project TimeGenerated, WorkspaceName=split(_ResourceId, "/")[-1], ClusterName, ClusterType, VmSize, VmPriority, 
+  InitialNodeCount , IdleNodeCount, RunningNodeCount, PreparingNodeCount, MinimumNodeCount, MaximumNodeCount , CurrentNodeCount, TargetNodeCount 
+|summarize round(sum(RunningNodeCount),1), round(sum(IdleNodeCount),1) by  Hourly=bin(TimeGenerated, 60m) 
+| render timechart
+
+// Graph of Running and Idle Node instances 
+// Graph of Running and Idle Node instances. 
+AmlComputeClusterEvent
+| project TimeGenerated, WorkspaceName=split(_ResourceId, "/")[-1], ClusterName, ClusterType, VmSize, VmPriority, 
+  InitialNodeCount , IdleNodeCount, RunningNodeCount, PreparingNodeCount, MinimumNodeCount, MaximumNodeCount , CurrentNodeCount, TargetNodeCount 
+|summarize round(sum(RunningNodeCount),1), round(sum(IdleNodeCount),1) by  Hourly=bin(TimeGenerated, 60m) 
+| render timechart
+
+// Latest OnlineEndpoint Console Logs 
+// Get latest 100 log records in the last 24 hours. 
+AmlOnlineEndpointConsoleLog
+| parse kind=regex flags=i _ResourceId with ".*?/RESOURCEGROUPS/" ResourceGroup "/PROVIDERS/MICROSOFT.MACHINELEARNINGSERVICES/WORKSPACES/" Workspace "/ONLINEENDPOINTS/" EndpointName
+| project
+    TimeGenerated,
+    Subscription = _SubscriptionId,
+    ResourceGroup,
+    Workspace,
+    EndpointName,
+    DeploymentName,
+    InstanceId,
+    ContainerName,
+    Message
+| take 100
+
+// List callers and their associated action in last 48 hours 
+// List callers and their associated action in last 48 hours. 
+AzureActivity
+| where TimeGenerated > ago(2d)
+| project Caller, OperationNameValue, ActivityStatusValue, CategoryValue
+| where Caller has "@"
+
+// Plot compute cluster utilization 
+// Plot recent compute cluster CPU utilization over time for specific cluster. 
+AmlComputeCpuGpuUtilization
+| join kind = inner (AmlComputeJobEvent
+        | where  NodeId!="" and EventType =="JobSucceeded"
+        | project NodeId, ClusterName)
+    on NodeId 
+| project TimeGenerated, todecimal(Utilization),  ClusterName, DeviceType
+| where ClusterName=="Cpu-cluster" and DeviceType=="CPU"
+| limit 100
+| render timechart   
+
+// Request the history of accessing environment 
+// Request the history of accessing specific environment in the specific AML workspace. 
+AmlEnvironmentEvent 
+| where  AmlEnvironmentName =="experiment_env" and  split(_ResourceId, "/")[-1]=="amlws"
+| extend  Identity=(parse_json(Identity))
+| where Identity.UserName!=""
+| project TimeGenerated, OperationName=split(OperationName, "/")[-1], WorkspaceName=split(_ResourceId, "/")[-1], AmlEnvironmentName,AmlEnvironmentVersion,  UserName=Identity.UserName
+| limit 100
+
+// Show deserialization errors 
+// Retrieves the most recent 100 error logs from failures to deserialize telemetry message(s) and summarizes them to display the time when the log was generated (TimeGenerated), a high level description (ResultDescription), and a message with the deserialization error (Message). 
+//Retrieves the most recent 100 error logs from failures to deserialize telemetry message(s) and summarizes them to display the time when the log was generated (TimeGenerated), a high level description (ResultDescription), and a message with the deserialization error (Message).
+TSIIngress
+| where OperationName == 'Microsoft.TimeSeriesInsights/environments/eventsources/ingress/deserialize'
+| project TimeGenerated, ResultDescription, Message, tostring(EventSourceProperties)
+| top 100 by TimeGenerated desc
+
+// Show event source connection errors 
+// Retrieves the most recent 100 logs pertaining to event source connection failures and summarizes them to display the time when the log was generated (TimeGenerated), a high level description (ResultDescription), a message continaing details on what went wrong and how to fix it (Message), and your event source's current configuration (EventSourceProperties). 
+//Retrieves the most recent 100 logs pertaining to event source connection failures and summarizes them to display the time when the log was generated (TimeGenerated), a high level description (ResultDescription), a message continaing details on what went wrong and how to fix it (Message), and your event source's current configuration (EventSourceProperties). 
+TSIIngress
+| where OperationName == 'Microsoft.TimeSeriesInsights/environments/eventsources/ingress/connect'
+| project TimeGenerated, ResultDescription, Message, tostring(EventSourceProperties)
+| top 100 by TimeGenerated desc
+
+// VM creation 
+// This query displays results of when a VM is created. 
+AzureActivity
+| where TimeGenerated >= ago(1d)
+| where OperationNameValue == "MICROSOFT.COMPUTE/VIRTUALMACHINES/WRITE" and ActivityStatusValue == "Start"
+| where Authorization_d.action == "Microsoft.Compute/virtualMachines/write"
+| project OperationNameValue, ActivityStatusValue, VM_Name=Properties_d.resource, ResourceGroup, SubscriptionId, Created_By=Caller
+
+let varComputer = "computer.domain.com";
+ConfigurationData
+| where ConfigDataType == "Software"
+| summarize arg_max(TimeGenerated, *) by SoftwareName, CurrentVersion
+//| where Computer == varComputer
+| where SoftwareName !contains "Security Update for Windows" and SoftwareName !contains "Update for Windows" and SoftwareName !contains "Quality Rollup" and SoftwareName !contains "Microsoft Visual C++" and SoftwareName !contains "Security Intelligence Update" and SoftwareName !contains "Update for Microsoft Defender Antivirus" and SoftwareName !contains "Security Update for Microsoft .NET Framework" and SoftwareName !contains "Cumulative Update for .NET Framework" and SoftwareName !contains "Security Update for Adobe Flash Player" and SoftwareName !contains "Cumulative Update" and SoftwareName !contains "(KB"
+| render table
+| summarize by Computer, Publisher, SoftwareName, CurrentVersion
