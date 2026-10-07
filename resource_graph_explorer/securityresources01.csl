@@ -1,0 +1,6 @@
+securityresources | where type =~ 'microsoft.security/assessments/subassessments' | extend assessmentKey=extract(@'(?i)providers/Microsoft.Security/assessments/([^/]*)', 1, id), subAssessmentId=tostring(properties.id), parentResourceId= extract('(.+)/providers/Microsoft.Security', 1, id) | extend resourceId = tostring(properties.resourceDetails.id) | extend subAssessmentName=tostring(properties.displayName),
+subAssessmentCategory=tostring(properties.category),
+severity=tostring(properties.status.severity),
+status=tostring(properties.status.code),
+additionalData=tostring(properties.additionalData) | where assessmentKey == '1195afff-c881-495e-9bc5-1486211ae03f' | where status == 'Unhealthy' | where  severity == 'High'
+| summarize numOfResources=dcount(resourceId) by assessmentKey, subAssessmentId, subAssessmentName, subAssessmentCategory, severity, status

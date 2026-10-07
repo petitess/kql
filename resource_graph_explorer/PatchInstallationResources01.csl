@@ -1,0 +1,14 @@
+PatchInstallationResources
+| where properties.lastModifiedDateTime > ago(30d)
+| where type in~ ("microsoft.compute/virtualmachines/patchinstallationresults", "microsoft.hybridcompute/machines/patchinstallationresults")
+| parse tolower(id) with resourceId "/patchinstallationresults" *
+| extend resourceId=tolower(resourceId), resourceType = strcat(split(type, "/")[0], "/", split(type, "/")[1]) // resource type
+| join kind=leftouter(
+    resources
+    | where type =~ "Microsoft.SqlVirtualMachine/sqlVirtualMachines"
+    | project resourceId = tolower(properties.virtualMachineResourceId), sqlType = type
+) on resourceId
+| extend resourceType = iff(isnotempty(sqlType), sqlType, resourceType)
+| project type, properties, resourceType
+| where resourceType in~ ("microsoft.compute/virtualmachines", "microsoft.hybridcompute/machines", "microsoft.sqlvirtualmachine/sqlvirtualmachines") // Filtering by resource type
+| summarize count() by type, tostring(properties.osType), tostring(properties.startedBy), tostring(properties.status), isNoMaintenanceRunId = isempty(properties.maintenanceRunId) // 'isNoMaintenanceRunId' helps to identify auto guest patching runs in case of Platform initiated patching

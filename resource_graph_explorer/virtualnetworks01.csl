@@ -1,0 +1,37 @@
+resources
+| where type == "microsoft.network/virtualnetworks"
+| where properties['subnets'] contains "snet"
+| extend addressSpace = properties.addressSpace.addressPrefixes
+| project name, addressSpace
+
+Resources
+| where type =~ 'microsoft.network/virtualnetworks'
+| project subnets = properties.subnets
+| mvexpand subnets
+| project subnets.name, addressPrefix = subnets.properties.addressPrefix
+
+Resources
+| where type =~ 'microsoft.network/virtualnetworks'
+| project virtualNetwork = name, subnets = properties.subnets
+| mvexpand subnets
+| project vnetSubnet = tolower(strcat(virtualNetwork, "-", subnets.name)), addressPrefix = subnets.properties.addressPrefix
+
+Resources
+| where type =~ 'microsoft.network/virtualnetworks'
+| project subscriptionId, virtualNetwork = name, subnets = properties.subnets
+| mvexpand subnets
+| project subscriptionId, vnetSubnet = tolower(strcat(virtualNetwork, "-", subnets.name)), addressPrefix = subnets.properties.addressPrefix
+
+Resources
+| where type contains 'publicIPAddresses' and isnotempty(properties.ipAddress)
+| extend ipConfig = properties.ipConfiguration.id
+| extend ipAddress = properties.ipAddress
+| project ipAddress, ipConfig
+
+Resources
+| where type =~ 'microsoft.network/virtualnetworks' 
+| where name startswith "vnet"
+| project subnets = properties.subnets
+| mvexpand subnets
+| project subnets.name, addressPrefix = subnets.properties.addressPrefix
+| sort by  tostring(addressPrefix)

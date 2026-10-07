@@ -1,0 +1,51 @@
+patchassessmentresources
+| where type == "microsoft.compute/virtualmachines/patchassessmentresults"
+| where subscriptionId == "xxx-be27-46a2-9bb0-xxx"
+| where properties.availablePatchCountByClassification.security > 0 or properties.availablePatchCountByClassification.critical > 0
+
+patchassessmentresources
+| where type == "microsoft.compute/virtualmachines/patchassessmentresults"
+| where subscriptionId == "xxx-be27-46a2-xxx"
+| where properties.availablePatchCountByClassification.security > 0 or properties.availablePatchCountByClassification.critical > 0
+| extend 
+security = properties.availablePatchCountByClassification.security,
+critical = properties.availablePatchCountByClassification.critical
+
+patchassessmentresources
+| where type == "microsoft.compute/virtualmachines/patchassessmentresults"
+| where subscriptionId == "xxx-be27-46a2-9bb0-xxx"
+| where properties.availablePatchCountByClassification.security > 0 or properties.availablePatchCountByClassification.critical > 0
+| extend 
+security = properties.availablePatchCountByClassification.security,
+critical = properties.availablePatchCountByClassification.critical
+| project resourceGroup, security, critical, id
+
+patchassessmentresources
+| where type == "microsoft.compute/virtualmachines/patchassessmentresults"
+| where subscriptionId == "xxxxxxx-be27-46a2-9bb0-xxxxxx"
+| where properties.availablePatchCountByClassification.security > 0 or properties.availablePatchCountByClassification.critical > 0
+| extend 
+security = properties.availablePatchCountByClassification.security,
+critical = properties.availablePatchCountByClassification.critical
+| project resourceGroup, security, critical, vm = (replace("/subscriptions/xxxx-be27-46a2-9bb0-xxxxx/resourceGroups/*", "", id))
+
+patchassessmentresources
+| where type == "microsoft.compute/virtualmachines/patchassessmentresults"
+| where subscriptionId == "xxxxxx-be27-46a2-9bb0-xxxxxx"
+| where properties.availablePatchCountByClassification.security > 0 or properties.availablePatchCountByClassification.critical > 0
+| extend 
+security = properties.availablePatchCountByClassification.security,
+critical = properties.availablePatchCountByClassification.critical
+| project resourceGroup, security, critical, vm = (replace('/subscriptions/xxxx-46a2-9bb0-xxxxx/resourceGroups/*', '', (trim_end('/patchAssessmentResults/latest', id))))
+
+patchassessmentresources
+| where type == "microsoft.compute/virtualmachines/patchassessmentresults"
+| where subscriptionId == "xxxxxxx-be27-46a2-9bb0-xxxx"
+| where properties.availablePatchCountByClassification.security > 0 or properties.availablePatchCountByClassification.critical > 0
+| extend 
+security = properties.availablePatchCountByClassification.security,
+critical = properties.availablePatchCountByClassification.critical,
+vm = (trim_start('/subscriptions/xxxxx-be27-46a2-9bb0-xxxxx/resourceGroups/*', (trim_end('/patchAssessmentResults/latest', replace("/providers/Microsoft.Compute/virtualMachines", "", id))))) | project vm, security, critical
+
+//WORKS WITH LOGICAPP
+patchassessmentresources | where type == 'microsoft.compute/virtualmachines/patchassessmentresults' | where subscriptionId == 'xxxx-be27-46a2-9bb0-xxxx' | where properties.availablePatchCountByClassification.security > 0 or properties.availablePatchCountByClassification.critical > 0 | extend security = properties.availablePatchCountByClassification.security, critical = properties.availablePatchCountByClassification.critical | project vm = replace('/providers/Microsoft.Compute/virtualMachines', '',(trim_end('/patchAssessmentResults/latest', substring(id, 67, 250)))), security, critical
