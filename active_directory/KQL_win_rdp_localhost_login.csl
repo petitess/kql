@@ -1,0 +1,4 @@
+SecurityEvent | where (EventID == "4624" and LogonType == "10" and SourceNetworkAddress == "::1" or SourceNetworkAddress == "127.0.0.1")
+
+//Version 2
+SecurityEvent | where (EventID == "4624" and LogonType == "10" and IpAddress  == "::1" or IpAddress == "127.0.0.1")

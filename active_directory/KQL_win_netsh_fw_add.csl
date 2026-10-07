@@ -1,0 +1,2 @@
+﻿//Checks if a rule was added to windows firewall
+ SecurityEvent | where EventID == "4688" | where CommandLine contains "netsh firewall add"

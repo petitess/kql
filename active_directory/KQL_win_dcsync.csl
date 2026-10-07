@@ -1,0 +1,2 @@
+//4662 - An operation was performed on an object.
+SecurityEvent | where (EventID == "4662" and Properties contains "Replicating Directory Changes All" or Properties contains "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2")

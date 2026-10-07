@@ -1,0 +1,1 @@
+﻿SecurityEvent | where ((LogonType == "3" and LogonProcessName == "NtLmSsp" and WorkstationName == "%Workstations%" and Computer == "%Workstations%" and (EventID == "4624" or EventID == "4625")) and not (AccountName == "ANONYMOUS LOGON"))

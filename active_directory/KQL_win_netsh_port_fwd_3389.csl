@@ -1,0 +1,2 @@
+﻿//Checks if RDP was added to windows firewall
+ SecurityEvent | where EventID == "4688" | where CommandLine matches regex "netsh i.* p.*=3389 c.*"

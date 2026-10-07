@@ -1,0 +1,8 @@
+SecurityEvent | where (EventID == "5136" and LDAPDisplayName == "ntSecurityDescriptor" and Value contains "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2" or Value contains "1131f6aa-9c07-11d1-f79f-00c04fc2dcd2")
+
+//Version 2
+//5136 - A directory service object was modified.
+SecurityEvent 
+| where EventID == "5136" 
+and Properties contains "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2" 
+and EventData == "ntSecurityDescriptor" 

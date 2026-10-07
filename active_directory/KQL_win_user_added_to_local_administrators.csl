@@ -1,0 +1,8 @@
+//A member was added to a security-enabled local group.
+SecurityEvent | where ((EventID == "4732" and GroupName == "Administrators") and not (SubjectUserName endswith "$"))
+
+//Version 2
+SecurityEvent
+| where EventID == "4732"
+| where GroupMembership has "Admin"
+| where SubjectUserName !endswith "$" 
