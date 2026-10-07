@@ -1,0 +1,8 @@
+SecurityEvent | where EventID == "4688" | where ((Image == "C:\Windows\SysWOW64\cmd.exe" and CommandLine contains "\\Windows\\Caches\\NavShExt.dll ") or CommandLine endswith "\\AppData\\Roaming\\MICROS~1\\Windows\\Caches\\NavShExt.dll,Setting")
+ 
+ //Version 2
+ SecurityEvent 
+| where EventID == "4688" 
+| where NewProcessName == "C:\\Windows\\SysWOW64\\cmd.exe"
+| where CommandLine contains "\\Windows\\Caches\\NavShExt.dll"
+| where CommandLine contains "" "\\AppData\\Roaming\\MICROS~1\\Windows\\Caches\\NavShExt.dll,Setting"

@@ -1,0 +1,7 @@
+SecurityEvent | where EventID == "4688" | where Image endswith "\\crackmapexec.exe"
+
+//Version 2
+SecurityEvent | where EventID == "4688" | where NewProcessName endswith "\\crackmapexec.exe"
+
+//Version 3
+SecurityEvent | where EventID == "4688" | where Process endswith "crackmapexec.exe"

@@ -1,0 +1,6 @@
+﻿SecurityEvent | where EventID == "4688" | where CommandLine == "reg query "HKEY_CURRENT_USER\Software\Microsoft\Terminal Server Client\Default"" or CommandLine startswith "powershell.exe mshta.exe http" or CommandLine == "cmd.exe /c taskkill /im cmd.exe"
+ 
+ //Better version
+ SecurityEvent
+| where EventID == 4688 and Process == "reg.exe"
+and CommandLine contains "query" and CommandLine has "HKEY_CURRENT_USER\\Software\\Microsoft\\Terminal Server Client\\Default"

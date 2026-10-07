@@ -1,0 +1,6 @@
+SecurityEvent | where EventID == "4688" | where (CommandLine endswith "/i:%APPDATA%\\logs.txt scrobj.dll" and (Image endswith "\\cutil.exe" or Description == "Microsoft(C) Registerserver"))
+
+//Version 2
+SecurityEvent 
+| where EventID == "4688" 
+| where (CommandLine endswith "/i:%APPDATA%\\logs.txt scrobj.dll" and (NewProcessName endswith "\\cutil.exe" or DeviceDescription  == "Microsoft(C) Registerserver"))

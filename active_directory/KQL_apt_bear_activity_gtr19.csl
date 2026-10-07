@@ -1,0 +1,8 @@
+SecurityEvent | where EventID == "4688" | where ((Image endswith "\\xcopy.exe" and CommandLine contains " /S /E /C /Q /H \\") or (Image endswith "\\adexplorer.exe" and CommandLine contains " -snapshot \"\" c:\\users\\"))
+ 
+//Version 2
+SecurityEvent | where EventID == "4688" | where ((NewProcessName endswith "\\xcopy.exe" and CommandLine contains " /S /E /C /Q /H \\") or (NewProcessName endswith "\\adexplorer.exe" and CommandLine contains " -snapshot \"\" c:\\users\\"))
+
+//
+SecurityEvent
+| where NewProcessName endswith "\\xcopy.exe"
