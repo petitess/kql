@@ -1,0 +1,6 @@
+//Visualize the severity of your security incidents per month
+let timerange=365d;
+SecurityIncident
+| where TimeGenerated > ago(timerange)
+| summarize IncidentSeverity=dcount(IncidentNumber)by Severity, startofmonth(TimeGenerated)
+| render columnchart with (kind=unstacked, title="Microsoft Sentinel Incident Severity", xtitle="Month") 
