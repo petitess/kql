@@ -1,6 +1,7 @@
 ```kql
 NTANetAnalytics
 | where FlowStartTime > ago(30m)
+//| where TimeGenerated between (datetime(2026-10-08T11:50:03) .. datetime(2026-10-08T11:53:03))
 | where (SrcIp == "10.100.88.4" and DestIp == "10.10.30.10") 
 | project TimeGenerated, FlowDirection, FlowStatus, AclRule, SrcIp, DestIp
 ```
