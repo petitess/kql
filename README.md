@@ -1,3 +1,22 @@
+Find blocking rule application gateway
+```kql
+AzureDiagnostics
+| where Category == "ApplicationGatewayFirewallLog" and action_s == "Blocked"
+
+AzureDiagnostics
+| where Category == "ApplicationGatewayFirewallLog" and action_s == "Matched" and transactionId_g == "xyz" | distinct ruleId_s
+```
+Find blocking rule front door
+```kql
+AzureDiagnostics
+| where Category == "FrontDoorWebApplicationFirewallLog" 
+| where action_s == "Block"
+
+AzureDiagnostics
+| where Category == "FrontDoorWebApplicationFirewallLog" 
+| where trackingReference_s == "xyz" 
+| distinct ruleName_s
+```
 Destinct 
 ```kql
 AzureDiagnostics
