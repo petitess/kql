@@ -1,3 +1,24 @@
+Destinct 
+```kql
+AzureDiagnostics
+| where Category == "ApplicationGatewayFirewallLog"
+| where action_s == "Blocked"
+| where hostname_s == "api.abc.me"
+| summarize arg_max(TimeGenerated, *) by clientIp_s
+```
+```kql
+ AzureDiagnostics
+| where Category == "ApplicationGatewayFirewallLog"
+| where action_s == "Blocked"
+| where hostname_s == "api.abc.me"
+| summarize
+    latestTime=max(TimeGenerated),
+    hostnames=make_set(hostname_s),
+    rules=make_set(ruleId_s),
+    url=make_set(requestUri_s)
+by clientIp_s
+```
+Timerange
 ```kql
 NTANetAnalytics
 | where FlowStartTime > ago(30m)
