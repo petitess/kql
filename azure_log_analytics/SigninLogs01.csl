@@ -1,0 +1,21 @@
+//User sign-in count - Total
+SigninLogs
+| where TimeGenerated > ago(1d)
+| project ConditionalAccessStatus, UserPrincipalName, AppDisplayName
+| where "All users" == "All users" or UserPrincipalName has "All users"
+| where "All apps" == "All apps" or AppDisplayName has "All apps"
+| project-away AppDisplayName
+| extend filterResult = case("Total" == "Total", "", "Total" == "Success", "success", "Total" == "Failure", "failure", "notApplied")
+| where ConditionalAccessStatus contains filterResult
+| summarize Count = count() by UserPrincipalName
+| sort by Count desc
+//Failed sign-in
+SigninLogs
+| where TimeGenerated > ago(1d)
+| where '*' == '*' or '*' == UserPrincipalName
+| where "All users" == "All users" or UserPrincipalName has "All users"
+| where "All apps" == "All apps" or AppDisplayName has "All apps"
+| extend filterResult = case("Total" == "Total", "", "Total" == "Success", "success", "Total" == "Failure", "failure", "notApplied")
+| where ResultSignature == "FAILURE"
+|where AppId == "xyz"
+| sort by TimeGenerated desc
