@@ -4,11 +4,16 @@
 NTANetAnalytics
 | where SubType == 'FlowLog' 
 | where FlowStartTime > ago(7d)
-// Filter for the specific IPs from your screenshot
-| where (SrcIp == "10.100.88.4" and DestIp == "10.10.30.10") 
-     or (SrcIp == "10.10.30.10" and DestIp == "10.100.88.4")
+| where (SrcIp == "10.1.88.4" and DestIp == "10.1.30.10") 
+     or (SrcIp == "10.1.30.10" and DestIp == "10.1.88.4")
 | where DestPort == 22
 | where FlowStatus == 'Denied'
-// This is the critical part: we project the rule that caused the block
 | project TimeGenerated, SrcIp, DestIp, DestPort, FlowStatus, FlowDirection, NSGRule, SrcNic, DestNic
 | order by TimeGenerated desc
+
+//Get by Destination, Sort by Source
+NTANetAnalytics
+| where SubType == 'FlowLog' 
+| where FlowStartTime > ago(7d)
+| where (DestIp == "1.2.3.45") 
+| summarize arg_max(TimeGenerated, *) by SrcIp
