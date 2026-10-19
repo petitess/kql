@@ -4,7 +4,8 @@ AzureDiagnostics
 | where Category == "ApplicationGatewayFirewallLog" and action_s == "Blocked"
 
 AzureDiagnostics
-| where Category == "ApplicationGatewayFirewallLog" and action_s == "Matched" and transactionId_g == "xyz" | distinct ruleId_s
+| where Category == "ApplicationGatewayFirewallLog" and action_s == "Matched" and transactionId_g == "xyz"
+| distinct ruleId_s
 ```
 Find blocking rule front door
 ```kql
