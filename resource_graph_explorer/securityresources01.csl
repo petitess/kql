@@ -4,3 +4,18 @@ severity=tostring(properties.status.severity),
 status=tostring(properties.status.code),
 additionalData=tostring(properties.additionalData) | where assessmentKey == '1195afff-c881-495e-9bc5-1486211ae03f' | where status == 'Unhealthy' | where  severity == 'High'
 | summarize numOfResources=dcount(resourceId) by assessmentKey, subAssessmentId, subAssessmentName, subAssessmentCategory, severity, status
+
+//find recommendations for virtual machines
+securityresources
+| where type == "microsoft.security/assessments"
+| where resourceGroup startswith "rg-vm"
+| where tostring(properties.displayName) startswith "Update"
+| where tostring(properties.status.code) == "Unhealthy"
+| where tostring(properties.displayName) !contains "openssl"
+| extend
+    vmName = split(tostring(properties.resourceDetails.Id), "/")[-1],
+    displayName = tostring(properties.displayName),
+    DetectedSoftwareVersions = tostring(properties.additionalData.DetectedSoftwareVersions),
+    MaxCvssScore = tostring(properties.additionalData.MaxCvssScore)
+| project vmName, displayName, DetectedSoftwareVersions, MaxCvssScore, id
+| sort by displayName asc
