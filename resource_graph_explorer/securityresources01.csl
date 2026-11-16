@@ -15,7 +15,8 @@ securityresources
 | extend
     vmName = split(tostring(properties.resourceDetails.Id), "/")[-1],
     displayName = tostring(properties.displayName),
-    DetectedSoftwareVersions = tostring(properties.additionalData.DetectedSoftwareVersions),
-    MaxCvssScore = tostring(properties.additionalData.MaxCvssScore)
-| project vmName, displayName, DetectedSoftwareVersions, MaxCvssScore, id
+    detectedSoftwareVersions = tostring(properties.additionalData.DetectedSoftwareVersions),
+    maxCvssScore = tostring(properties.additionalData.MaxCvssScore),
+    resourceId = tostring(properties.resourceDetails.Id)
+| project vmName, displayName, detectedSoftwareVersions, maxCvssScore, resourceId
 | sort by displayName asc
