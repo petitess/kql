@@ -36,6 +36,26 @@ by DeviceId, DeviceName, SoftwareName, SoftwareVendor
     Severities,
     CVEs
 | order by VulnerabilityCount desc, DeviceName asc
+//list devices with filtered software
+DeviceTvmSoftwareVulnerabilities
+| where DeviceName startswith "vm"
+| where SoftwareName !contains "openssl"
+| summarize
+    detectedSoftwareVersions = make_set(SoftwareVersion, 10),
+    maxCvssScore = max(todouble(CveTags)),
+    CVEs = make_set(CveId, 20)
+by
+    vmName = DeviceName,
+    displayName = SoftwareName,
+    resourceId = DeviceId
+| project
+    vmName,
+    displayName,
+    detectedSoftwareVersions,
+    maxCvssScore,
+    resourceId,
+    CVEs
+| sort by displayName asc
 //list one row per device with all vulnerable software aggregated
 DeviceTvmSoftwareVulnerabilities
 | where DeviceName startswith "abc-"
