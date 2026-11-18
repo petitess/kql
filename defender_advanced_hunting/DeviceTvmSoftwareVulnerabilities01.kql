@@ -1,0 +1,47 @@
+//list devices with a software
+DeviceTvmSoftwareVulnerabilities
+| where SoftwareName contains "python"
+| where SoftwareVersion startswith "3.5"
+| where DeviceName startswith "abc-"
+| summarize
+    Versions = make_set(SoftwareVersion),
+    CVEs = make_set(CveId),
+    Severities = make_set(VulnerabilitySeverityLevel),
+    VulnerabilityCount = dcount(CveId)
+by DeviceName
+| order by VulnerabilityCount desc
+//list devices with filtered software
+let vuln =
+DeviceTvmSoftwareVulnerabilities
+| where VulnerabilitySeverityLevel in ("High", "Critical")
+| where SoftwareVendor != "microsoft"
+| where SoftwareVendor != "openssl"
+| summarize
+    VulnerabilityCount = dcount(CveId),
+    CVEs = make_set(CveId, 10),
+    Severities = make_set(VulnerabilitySeverityLevel)
+by DeviceId, SoftwareName;
+DeviceTvmSoftwareInventory
+| where DeviceName startswith "abc-"
+| summarize
+    Versions = make_set(SoftwareVersion)
+by DeviceId, DeviceName, SoftwareName, SoftwareVendor
+| join kind=inner vuln on DeviceId, SoftwareName
+| project
+    DeviceName,
+    SoftwareName,
+    SoftwareVendor,
+    Versions,
+    VulnerabilityCount,
+    Severities,
+    CVEs
+| order by VulnerabilityCount desc, DeviceName asc
+//list one row per device with all vulnerable software aggregated
+DeviceTvmSoftwareVulnerabilities
+| where DeviceName startswith "abc-"
+| where VulnerabilitySeverityLevel in ("High", "Critical")
+| summarize
+    VulnerableSoftware = make_set(SoftwareName, 100),
+    CriticalOrHighCVEs = dcount(CveId)
+by DeviceName
+| order by CriticalOrHighCVEs desc
