@@ -1,0 +1,58 @@
+//software with threats and affected devices
+DeviceTvmSoftwareVulnerabilities
+| summarize
+    Weaknesses = dcount(CveId),
+    AffectedDevices = dcount(DeviceId),
+    CriticalCVEs = countif(VulnerabilitySeverityLevel == "Critical"),
+    HighCVEs = countif(VulnerabilitySeverityLevel == "High"),
+    Devices = make_set(DeviceName, 20),
+    Versions = make_set(SoftwareVersion, 20),
+    RecommendedUpdates = make_set(RecommendedSecurityUpdate, 10)
+by SoftwareVendor, SoftwareName, OSPlatform
+| extend
+    ThreatLevel =
+        case(
+            CriticalCVEs > 0, "Critical",
+            HighCVEs > 0, "High",
+            "Medium/Low"
+        )
+| order by
+    CriticalCVEs desc,
+    HighCVEs desc,
+    AffectedDevices desc
+//software with High/Critical threats:
+DeviceTvmSoftwareVulnerabilities
+| where VulnerabilitySeverityLevel in ("High", "Critical")
+| summarize
+    Weaknesses = dcount(CveId),
+    AffectedDevices = dcount(DeviceId),
+    Devices = make_set(DeviceName, 20)
+by SoftwareName, SoftwareVendor, OSPlatform
+| order by Weaknesses desc
+//“top risky software” dashboard
+DeviceTvmSoftwareVulnerabilities
+| summarize
+    Weaknesses = dcount(CveId),
+    AffectedDevices = dcount(DeviceId),
+    MaxSeverity = max(VulnerabilitySeverityLevel)
+by SoftwareName
+| where AffectedDevices > 5
+| order by Weaknesses desc
+//focus on End-of-Support software
+DeviceTvmSoftwareVulnerabilities
+| where RecommendedSecurityUpdate has_any (
+    "Upgrade",
+    "Update",
+    "End",
+    "Support",
+    "EOL",
+    "EOS"
+)
+| summarize
+    AffectedDevices = dcount(DeviceId),
+    Weaknesses = dcount(CveId),
+    Versions = make_set(SoftwareVersion, 20),
+    Devices = make_set(DeviceName, 20),
+    Recommendations = make_set(RecommendedSecurityUpdate, 10)
+by SoftwareName, SoftwareVendor
+| order by AffectedDevices desc
