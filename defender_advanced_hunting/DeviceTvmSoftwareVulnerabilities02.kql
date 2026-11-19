@@ -56,3 +56,20 @@ DeviceTvmSoftwareVulnerabilities
     Recommendations = make_set(RecommendedSecurityUpdate, 10)
 by SoftwareName, SoftwareVendor
 | order by AffectedDevices desc
+//windows 11 
+DeviceTvmSoftwareVulnerabilities
+| where SoftwareName contains "windows_11"
+| where RecommendedSecurityUpdateId == "5135385"
+ or RecommendedSecurityUpdateId == "5132061"
+ or RecommendedSecurityUpdateId == "5132043"
+| where SoftwareVersion == "10.0.26200.9911"
+| summarize
+    Versions = make_set(SoftwareVersion),
+    CVEs = make_set(CveId),
+    Severities = make_set(VulnerabilitySeverityLevel),
+    VulnerabilityCount = dcount(CveId),
+    RecommendedSecurityUpdateId = make_set(RecommendedSecurityUpdateId, 10),
+    RecommendedSecurityUpdate = make_set(RecommendedSecurityUpdate, 10)
+by DeviceName
+| order by VulnerabilityCount desc
+// | distinct DeviceName
