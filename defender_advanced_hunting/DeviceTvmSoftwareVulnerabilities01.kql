@@ -65,3 +65,11 @@ DeviceTvmSoftwareVulnerabilities
     CriticalOrHighCVEs = dcount(CveId)
 by DeviceName
 | order by CriticalOrHighCVEs desc
+//list one row per software only with all affected devices
+DeviceTvmSoftwareVulnerabilities
+| summarize
+    Devices = make_set(DeviceName),
+    Vulnerabilities = make_set(CveId),
+    DeviceCount = dcount(DeviceName)
+    by SoftwareName
+| order by DeviceCount desc
