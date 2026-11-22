@@ -70,6 +70,7 @@ DeviceTvmSoftwareVulnerabilities
 | summarize
     Devices = make_set(DeviceName),
     Vulnerabilities = make_set(CveId),
+    SoftwareVersions = make_set(SoftwareVersion),
     DeviceCount = dcount(DeviceName)
     by SoftwareName
 | order by DeviceCount desc
