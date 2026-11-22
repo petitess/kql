@@ -1,0 +1,6 @@
+GraphAPIAuditEvents 
+|where Scopes contains "Application.ReadWrite.All"
+| where RequestUri !contains "/me/"
+| where RequestUri !contains "/subscriptions("
+| where RequestUri contains "/groups("
+| where RequestMethod != "GET"
